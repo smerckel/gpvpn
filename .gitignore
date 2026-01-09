@@ -11,3 +11,6 @@ wheels/
 
 # Backup files
 *~
+
+# Compiled executables
+gpclientMockUp
