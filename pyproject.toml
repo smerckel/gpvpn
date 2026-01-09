@@ -1,0 +1,25 @@
+[project]
+name = "gpvpn"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Lucas Merckelbach", email = "lucas.merckelbach@hereon.de" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "aiozmq>=1.0.0",
+    "pyzmq>=27.1.0",
+]
+
+[project.scripts]
+gpvpn = "gpvpn:main"
+
+[build-system]
+requires = ["uv_build>=0.9.17,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ipython>=9.9.0",
+]
