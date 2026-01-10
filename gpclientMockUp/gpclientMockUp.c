@@ -34,10 +34,10 @@ int main() {
 
     printf("Lock file created: %s with PID: %d\n", LOCK_FILE, getpid());
 
-    // Loop forever
-    while (1) {
-        sleep(10);
-    }
+    // Loop for 30 seconds. This should be enough for tests, and we don't get
+    // lingering applications.
+    sleep(30);
+    
 
     // Cleanup (not reachable, but good practice)
 
