@@ -5,6 +5,8 @@ import json
 import logging
 import typing
 import os
+import stat
+import grp
 
 import zmq
 import zmq.asyncio
@@ -12,6 +14,7 @@ import zmq.asyncio
 logger = logging.getLogger(__name__)
 
 from .message_processors import MessageProcessorBase
+from .common import GROUPNAME
 
 class IPCServer:
 
@@ -35,6 +38,19 @@ class IPCServer:
                             self.socket_name)
         URL = f'ipc://{path}'
         self.socket.bind(URL)
+        if os.getuid() == 0: # called as root
+            # set the permssion correctly rw for ug
+            os.chmod(path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP)
+            # Get the GID for the group 'gpvpn'
+            try:
+                group_info = grp.getgrnam(GROUPNAME)
+            except KeyError:
+                logger.error(f"Groupname {GROUPNAME} is not available.")
+                sys.exit(1)
+            gid = group_info.gr_gid
+            # Set the group of the socket file
+            os.chown(path, -1, gid)  # -1 to keep the current owner
+
         logger.debug("Opened")
         
     def close(self) -> None:

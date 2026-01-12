@@ -15,3 +15,6 @@ class RETURNCODES(enum.IntEnum):
     Success = enum.auto()
     Failed = enum.auto()
     QuitApplication = enum.auto()
+
+
+GROUPNAME = "gpvpn"
