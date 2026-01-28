@@ -7,7 +7,7 @@ import grp
 from conftest import *
 
 from gpvpn.server import IPCServer, IPCClient
-from gpvpn.message_processors import MessageProcessorReverse, MessageProcessorVPNController
+from gpvpn.message_processors import MessageProcessorReverse
 from gpvpn.common import *
 
 
@@ -39,18 +39,6 @@ class IPCClientMockUp(IPCClient):
                              "--gateway",
                              "gpp.hereon.de"]
 
-
-class MessageProcessorVPNControllerMockUp(MessageProcessorVPNController):
-    def __init__(self):
-        super().__init__()
-        self.lockfile = "/tmp/gpclient.lock" # Defined in C program
-        self.vpn_command = ["gpclientMockUp/gpclientMockUp",
-                            "--timeout=1", # sets "working time to 1 second" Option not available in real client.
-                            "--fix-openssl",
-                            "connect",
-                            "--cookie-on-stdin",
-                            "--as-gateway",
-                            "gpp.hereon.de"]
 
 def test_reverse_server():
     server = IPCServer(message_processor=MessageProcessorReverse())
@@ -102,19 +90,21 @@ def test_ipcclient_in_group():
 
 
 def test_ipcclient_run_server():
-    message_processor = MessageProcessorVPNControllerMockUp()
+    message_processor = MessageProcessorVPNControllerWithTimeout()
+    message_processor.set_timeout(1)
     server = IPCServer(message_processor=message_processor)
     server.open()
     with IPCClientMockUp() as client:
         result = asyncio.run(test_tasks(server.run(),
                                         run_awaitable_with_delay(server.stop(),
-                                                                 delay=1)
+                                                                 delay=2)
                                         )
                              )
     assert result == [None, None]
 
 def test_ipcclient_status():
-    message_processor = MessageProcessorVPNControllerMockUp()
+    message_processor = MessageProcessorVPNControllerWithTimeout()
+    message_processor.set_timeout(1)
     server = IPCServer(message_processor=message_processor)
     server.open()
     with IPCClientMockUp() as client:
@@ -125,27 +115,23 @@ def test_ipcclient_status():
                                                                  delay=2)
                                         )
                              )
-        print(f"result {result}")
-        
-    assert True
-            
-# def test_ipcclient_auth():
-#     expected_auth_string = '{"success":{"portalUserauthcookie":"","preloginCookie":"HyiL+E5lbwtah/vkSYDaJ0AZfAk+GLJIEjmjrXvnfNn3v1eDS+cgDY7NbjvwZjb28WQQeQ==","token":null,"username":"lucas.merckelbach@hereon.de"}}'
+    assert result == [None, {'return_code': 2}, None]
 
-
-#     message_processor = MessageProcessorVPNControllerMockUp()
-#     server = IPCServer(message_processor=message_processor)
-#     server.open()
-#     with IPCClientMockUp() as client:
-#         result = asyncio.run(test_tasks(server.run(),
-#                                         run_awaitable_with_delay(client.send_request(COMMANDS.Open),
-#                                                                  delay=0.5),
-#                                         run_awaitable_with_delay(server.stop(),
-#                                                                  delay=3)
-#                                         )
-#                              )
-#         print(f"result {result}")
-        
-#     assert mesg.strip() == expected_auth_string
+    
+def test_ipcclient_auth():
+    message_processor = MessageProcessorVPNControllerWithTimeout()
+    message_processor.set_timeout(1)
+    server = IPCServer(message_processor=message_processor)
+    server.open()
+    with IPCClientMockUp() as client:
+        result = asyncio.run(test_tasks(server.run(),
+                                        run_awaitable_with_delay(client.send_request(COMMANDS.Open),
+                                                                 delay=0.5),
+                                        run_awaitable_with_delay(server.stop(),
+                                                                 delay=3)
+                                        )
+                             )
+    assert result[0] == result[2] == None
+    assert result[1]["return_code"] == RETURNCODES.Success
 
     

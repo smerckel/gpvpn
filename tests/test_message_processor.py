@@ -8,26 +8,8 @@ import json
 from gpvpn.message_processors import MessageProcessorVPNController
 from gpvpn.common import *
 
-class MessageProcessorVPNControllerWithTimeout(MessageProcessorVPNController):
-    def __init__(self, timeout=1):
-        super().__init__()
-        self.set_vpn_command(2)
-        self.lockfile = "/tmp/gpclient.lock"
-        self.WAIT_FOR_LOCKFILE=0.5
 
-    def set_vpn_command(self, timeout):
-        self.vpn_command = ["gpclientMockUp/gpclientMockUp",
-                            f"--timeout={timeout}", # sets "working time to 1 second" Option not available in real client.
-                            "--fix-openssl",
-                            "connect",
-                            "--cookie-on-stdin",
-                            "--as-gateway",
-                            "gpp.hereon.de"]
-        
-    def set_timeout(self, timeout):
-        self.set_vpn_command(timeout)
-
-# import some common functions and fixtures:
+# import some common functions, classes and fixtures:
 from conftest import *
 # conftest defines:
 #    async def test_tasks(*tasks):
