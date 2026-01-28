@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
   // Register sigterm handler
   signal(SIGTERM, signal_handler);
   
-  printf("Lock file created: %s with PID: %d\n", LOCK_FILE, getpid());
+  fprintf(stderr, "Lock file created: %s with PID: %d\n", LOCK_FILE, getpid());
   
   // Loop for some seconds. This should be enough for tests, and we don't get
   // lingering applications.
@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
   sleep(timeout);
   
   unlink(LOCK_FILE);
-  
+  fprintf(stderr, "Removing lockfile and exiting.");
   return EXIT_SUCCESS;
 }
 

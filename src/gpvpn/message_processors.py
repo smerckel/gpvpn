@@ -13,18 +13,6 @@ from .common import *
 
 logger = logging.getLogger(__name__)
 
-def serialise(function: typing.Callable) -> typing.Any:
-    async def wrapper(*p) -> str:
-        return_code = await function(*p)
-        logger.debug(f"Message: {return_code}")
-        d = dict(return_code=return_code)
-        return json.dumps(d)
-    return wrapper
-
-def deserialise(json_message):
-    d = json.loads(json_message)
-    return d
-
 class MessageProcessorBase(abc.ABC):
 
     @abc.abstractmethod
@@ -43,7 +31,7 @@ class MessageProcessorReverse(MessageProcessorBase):
 
 
 class MessageProcessorVPNController(MessageProcessorBase):
-
+    WAIT_FOR_LOCKFILE=5 # wait this many seconds after start the gpclient to check for any lockfile.
     
     def __init__(self) -> None:
         self.lockfile = "/var/run/gpclient.lock"
@@ -70,8 +58,7 @@ class MessageProcessorVPNController(MessageProcessorBase):
         with open(self.logfile, 'w') as fp:
             process = await asyncio.create_subprocess_exec(
                 *command,
-                #stdout=asyncio.subprocess.DEVNULL,  # Redirect stdout to nowhere
-                #stderr=asyncio.subprocess.DEVNULL,   # Redirect stderr to nowhere
+                stdin=asyncio.subprocess.PIPE,
                 stdout=fp,
                 stderr=fp,
             )
@@ -94,11 +81,15 @@ class MessageProcessorVPNController(MessageProcessorBase):
         if os.path.exists(self.lockfile): # Should we also analyse the output of route?
             return RETURNCODES.AlreadyConnected
         logger.debug("launching vpn command...")
-        logger.debug("TODO : supply logincode")
         logger.debug(f"vpn_command {self.vpn_command}.")
         self.subprocess = await self.run_detached_program(self.vpn_command)
         logger.debug("vpn command launched.")
-        await asyncio.sleep(5) # is this long enough for gpclient program?
+        # communicate the logincode
+        self.subprocess.stdin.write(logincode.encode())
+        await self.subprocess.stdin.drain()
+        self.subprocess.stdin.close() # close stdin, so our program knows there is nothing to be expected.
+        logger.debug("login code submitted. (Should be echoed in log file)")
+        await asyncio.sleep(self.WAIT_FOR_LOCKFILE) # is this long enough for gpclient program?
         if os.path.exists(self.lockfile): # Should we also analyse the output of route?
             return_code = RETURNCODES.Success
         else:

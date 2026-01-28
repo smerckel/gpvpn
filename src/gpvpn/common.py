@@ -1,4 +1,5 @@
 import enum
+import json
 
 class COMMANDS(enum.IntEnum):
     Status = enum.auto()
@@ -22,3 +23,13 @@ class ERRORCODES(enum.IntEnum):
 
 GROUPNAME = "gpvpn"
 
+def serialise(function: typing.Callable) -> typing.Any:
+    async def wrapper(*p) -> str:
+        return_code = await function(*p)
+        d = dict(return_code=return_code)
+        return json.dumps(d)
+    return wrapper
+
+def deserialise(json_message) -> dict[str,str]:
+    d = json.loads(json_message)
+    return d

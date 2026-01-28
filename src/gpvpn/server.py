@@ -15,7 +15,7 @@ import zmq.asyncio
 logger = logging.getLogger(__name__)
 
 from .message_processors import MessageProcessorBase
-from .common import GROUPNAME, ERRORCODES, COMMANDS
+from .common import GROUPNAME, ERRORCODES, COMMANDS, deserialise
 
 class IPCServer:
 
@@ -85,7 +85,7 @@ class IPCServer:
                 logger.warning("Trying to stop listen task that is already finished.")
         else:
             self.task.cancel()
-            logger.debug("Stopping task...")
+            logger.debug("Stopping server...")
 
 
 
@@ -145,6 +145,7 @@ class IPCClient:
             stdout = asyncio.subprocess.PIPE,
             stderr = asyncio.subprocess.DEVNULL)
         stdout, stderr = await process.communicate()
+        logger.debug("authentication completed.")
         return stdout
 
     async def send_request(self, message: str) -> str:
@@ -160,7 +161,7 @@ class IPCClient:
         # Wait for a reply
         reply = await self.socket.recv()
         logger.debug(f"Reply from server: {reply}.")
-        return reply.decode()
+        return deserialise(reply.decode())
 
 
     
