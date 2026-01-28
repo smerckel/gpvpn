@@ -15,6 +15,10 @@ class RETURNCODES(enum.IntEnum):
     Success = enum.auto()
     Failed = enum.auto()
     QuitApplication = enum.auto()
-
+    CommandNotUnderstood = enum.auto()
+    
+class ERRORCODES(enum.IntEnum):
+    GroupError = enum.auto()
 
 GROUPNAME = "gpvpn"
+

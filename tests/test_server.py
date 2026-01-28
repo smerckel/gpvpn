@@ -1,10 +1,19 @@
 import pytest
 import asyncio
+import logging
+import os
+import grp
 
 from conftest import *
 
 from gpvpn.server import IPCServer, IPCClient
-from gpvpn.message_processors import MessageProcessorReverse
+from gpvpn.message_processors import MessageProcessorReverse, MessageProcessorVPNController
+from gpvpn.common import *
+
+
+logging.basicConfig(level=logging.WARNING)
+logger = logging.getLogger("gpvpn.server")
+logger.setLevel(logging.DEBUG)
 
 # conftest defines:
 #    async def test_tasks(*tasks):
@@ -15,10 +24,37 @@ def test_open_server():
     server.open()
     server.close()
 
+# Mock up class disabling verify_in_group check.
+class IPCClientNoCheck(IPCClient):
+    def verify_in_group(self) -> bool:
+        return True
+
+class IPCClientMockUp(IPCClient):
+    def __init__(self):
+        super().__init__()
+        # Override auth command with a mocked up version
+        self.auth_command = ["gpauthMockup/gpauthMockUp",
+                             "--fix-openssl",
+                             "--default-browser",
+                             "--gateway",
+                             "gpp.hereon.de"]
+
+
+class MessageProcessorVPNControllerMockUp(MessageProcessorVPNController):
+    def __init__(self):
+        super().__init__()
+        self.lockfile = "/tmp/gpclient.lock" # Defined in C program
+        self.vpn_command = ["gpclientMockUp/gpclientMockUp",
+                            "--fix-openssl",
+                            "connect",
+                            "--browser",
+                            "default",
+                            "vpn.hereon.de"]
+
 def test_reverse_server():
     server = IPCServer(message_processor=MessageProcessorReverse())
     server.open()
-    with IPCClient() as client:
+    with IPCClientNoCheck() as client:
         result = asyncio.run(test_tasks(server.run(),
                                         run_awaitable_with_delay(client.send_request("hello"),
                                                                  delay=0.5),
@@ -28,4 +64,58 @@ def test_reverse_server():
                                                                  delay=1)
                                         )
                              )
-    assert result == [None, 'olleh', 'OLLEH', None]
+    expected_result = [None, '{"return_command": "olleh"}', '{"return_command": "OLLEH"}', None]
+    assert result == expected_result
+
+
+def test_ipcclient_non_existing_group():
+    with pytest.raises(SystemExit):
+        client = IPCClient()
+        client.groupname = "non-existent"
+        client.verify_in_group()
+
+def test_ipcclient_not_in_group():
+        client = IPCClient()
+        uid = os.getuid()
+        if uid == 0:
+            print("Nothing to test here.")
+            # we are root, nothing to test.
+            assert True
+        else:
+            # any user is not in group  root 
+            client.groupname = "root"
+        with pytest.raises(SystemExit):
+            client.verify_in_group()
+
+def test_ipcclient_in_group():
+        client = IPCClient()
+        uid = os.getuid()
+        gids = os.getgroups()
+        client.groupname = grp.getgrgid(gids[0]).gr_name
+        if uid == 0:
+            print("Nothing to test here.")
+            # we are root, nothing to test.
+            assert True
+        else:
+            assert client.verify_in_group()
+
+def test_ipcclient_auth():
+    expected_auth_string = '{"success":{"portalUserauthcookie":"","preloginCookie":"HyiL+E5lbwtah/vkSYDaJ0AZfAk+GLJIEjmjrXvnfNn3v1eDS+cgDY7NbjvwZjb28WQQeQ==","token":null,"username":"lucas.merckelbach@hereon.de"}}'
+
+
+    message_processor = MessageProcessorVPNControllerMockUp()
+    server = IPCServer(message_processor=message_processor)
+    server.open()
+    with IPCClientMockUp() as client:
+        result = asyncio.run(test_tasks(server.run(),
+                                        run_awaitable_with_delay(client.send_request(COMMANDS.Open),
+                                                                 delay=0.5),
+                                        run_awaitable_with_delay(server.stop(),
+                                                                 delay=1)
+                                        )
+                             )
+        print(f"result {result}")
+        
+    assert mesg.strip() == expected_auth_string
+
+    

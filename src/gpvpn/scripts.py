@@ -29,8 +29,7 @@ def client_app():
                                      description='Global Connect VPN contoller',
                                      epilog='')
     parser.add_argument('command',
-                        choices=['status', 'connect', 'disconnect', 'stop_server',
-                                 's' ,'c','d'],
+                        choices=['status', 'connect', 'disconnect', 'stop_server']
                         help='Commands to control the vpn status.')
     args = parser.parse_args()
     match args.command:
@@ -43,8 +42,7 @@ def client_app():
         case "stop_server":
             s = "Quit"
             
-    command = COMMANDS[s]
-    command_str = json.dumps(command)
+    command = args.command
     with server.IPCClient() as client:
         result = asyncio.run(client.send_request(command_str))
     return_code = decode(result)
@@ -69,6 +67,8 @@ def client_app():
                 mesg = "VPN connection could not be activated"
         case RETURNCODES.QuitApplication:
             mesg = "gpvpn server killed"
+        case RETURNCODES.CommandNotUnderstood:
+            mesg = f"Command {args.command} was not understood. Try --help..."
         case _:
             mesg = "Received unknown return code from server"
     print(mesg)

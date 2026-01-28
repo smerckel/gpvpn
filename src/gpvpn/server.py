@@ -6,6 +6,7 @@ import logging
 import typing
 import os
 import stat
+import sys
 import grp
 
 import zmq
@@ -14,7 +15,7 @@ import zmq.asyncio
 logger = logging.getLogger(__name__)
 
 from .message_processors import MessageProcessorBase
-from .common import GROUPNAME
+from .common import GROUPNAME, ERRORCODES, COMMANDS
 
 class IPCServer:
 
@@ -50,13 +51,12 @@ class IPCServer:
             gid = group_info.gr_gid
             # Set the group of the socket file
             os.chown(path, -1, gid)  # -1 to keep the current owner
-
-        logger.debug("Opened")
+        logger.info(f"gpvpn server serving at {URL}.")
         
     def close(self) -> None:
         self.socket.close()
         self.context.term()
-        logger.debug("Closed")
+        logger.info("gpvpn server shut down.")
         
     async def listen(self) -> None:
         logger.debug("Starting to listen...")
@@ -69,9 +69,8 @@ class IPCServer:
             await self.socket.send_string(return_message)
             
     async def run(self) -> None:
-        logger.debug("Starting start...")
+        logger.info("Listening for incomming connections...")
         self.task = asyncio.create_task(self.listen())
-        logger.debug("Start started")
         try:
             await self.task            
         except asyncio.CancelledError:
@@ -91,7 +90,6 @@ class IPCServer:
 
 
 class IPCClient:
-
     def __init__(self,
                  socket_path: str = '/tmp',
                  socket_name: str = 'ipcserver') -> None:
@@ -99,8 +97,15 @@ class IPCClient:
         self.socket_name = socket_name
         self.context = zmq.asyncio.Context()
         self.socket = self.context.socket(zmq.REQ)
-
+        self.groupname = GROUPNAME
+        self.auth_command = ["/usr/bin/gpauth",
+                             "--fix-openssl",
+                             "--default-browser",
+                             "--gateway",
+                             "gpp.hereon.de"]
+        
     def __enter__(self) -> typing.Self:
+        self.verify_in_group()
         self.open()
         return self
     
@@ -109,7 +114,20 @@ class IPCClient:
                  exc_value: typing.Any,
                  exc_traceback: typing.Any) -> None:
         self.close()
-        
+
+    def verify_in_group(self) -> bool:
+        try:
+            gpvpn_group = grp.getgrnam(self.groupname)
+        except KeyError:
+            logger.error(f"There is no group {self.groupname} defined.")
+            sys.exit(ERRORCODES.GroupError)
+        whoIam = os.getlogin()
+        return_value = whoIam in gpvpn_group.gr_mem
+        if not return_value:
+            logger.error(f"User {whoIam} is not in {self.groupname}.")
+            sys.exit(ERRORCODES.GroupError)
+        return return_value
+            
     def open(self):
         path = os.path.join(os.path.abspath(self.socket_path),
                             self.socket_name)
@@ -121,10 +139,27 @@ class IPCClient:
         self.context.term()
         logger.debug("Client Closed")
 
+    async def authenticate(self):
+        process = await asyncio.create_subprocess_exec(
+            *self.auth_command,
+            stdout = asyncio.subprocess.PIPE,
+            stderr = asyncio.subprocess.DEVNULL)
+        stdout, stderr = await process.communicate()
+        return stdout
+
     async def send_request(self, message: str) -> str:
-        await self.socket.send_string(message)
+        d = dict(command_code=message)
+        if message == COMMANDS.Open:
+            bmessage = await self.authenticate()
+            logincode = bmessage.decode()
+            d["logincode"] = logincode
+        logger.debug(f"Dictionary to pass on: {d}")
+        json_message = json.dumps(d)
+        await self.socket.send_string(json_message)
+        logger.debug("Waiting for reply from server...")
         # Wait for a reply
         reply = await self.socket.recv()
+        logger.debug(f"Reply from server: {reply}.")
         return reply.decode()
 
 

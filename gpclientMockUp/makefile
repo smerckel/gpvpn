@@ -8,7 +8,7 @@ CFLAGS = -Wall -Wextra
 
 # Source and target files
 SRC = gpclientMockUp.c
-TARGET = gpclientMockup
+TARGET = gpclientMockUp
 
 # Default target
 all: $(TARGET)

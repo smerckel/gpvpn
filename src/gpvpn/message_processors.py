@@ -13,6 +13,18 @@ from .common import *
 
 logger = logging.getLogger(__name__)
 
+def serialise(function: typing.Callable) -> typing.Any:
+    async def wrapper(*p) -> str:
+        return_code = await function(*p)
+        logger.debug(f"Message: {return_code}")
+        d = dict(return_code=return_code)
+        return json.dumps(d)
+    return wrapper
+
+def deserialise(json_message):
+    d = json.loads(json_message)
+    return d
+
 class MessageProcessorBase(abc.ABC):
 
     @abc.abstractmethod
@@ -21,18 +33,12 @@ class MessageProcessorBase(abc.ABC):
 
 class MessageProcessorReverse(MessageProcessorBase):
     
-    async def process(self, message: str) -> str:
-        message = message[::-1]
+    async def process(self, json_message: str) -> str:
+        d = deserialise(json_message)
+        command_str = d["command_code"]
+        command_str = command_str[::-1]
+        message = json.dumps(dict(return_command=command_str))
         return message
-
-
-def serialise(function: typing.Callable) -> typing.Any:
-    async def wrapper(*p) -> str:
-        return_code = await function(*p)
-        logger.debug(f"Message: {return_code}")
-        d = dict(return_code=return_code)
-        return json.dumps(d)
-    return wrapper
 
 
 
@@ -47,6 +53,8 @@ class MessageProcessorVPNController(MessageProcessorBase):
                             "--browser",
                             "default",
                             "vpn.hereon.de"]
+
+        
         self.logfile = "gpclient.log"
         self.subprocess: asyncio.subprocess.Process | None = None
 
@@ -67,7 +75,6 @@ class MessageProcessorVPNController(MessageProcessorBase):
                 stdout=fp,
                 stderr=fp,
             )
-        logger.info(f"Started detached process with PID: {process.pid}")
         return process
 
     
@@ -78,15 +85,20 @@ class MessageProcessorVPNController(MessageProcessorBase):
             return_code = RETURNCODES.Active
         else:
             return_code = RETURNCODES.Inactive
+        logger.debug(f"Returning {return_code} in check status")
         return return_code
 
     
     @serialise
-    async def connect_vpn(self) -> enum.Enum:
+    async def connect_vpn(self, logincode: str) -> enum.Enum:
         if os.path.exists(self.lockfile): # Should we also analyse the output of route?
             return RETURNCODES.AlreadyConnected
+        logger.debug("launching vpn command...")
+        logger.debug("TODO : supply logincode")
+        logger.debug(f"vpn_command {self.vpn_command}.")
         self.subprocess = await self.run_detached_program(self.vpn_command)
-        await asyncio.sleep(0.05) # is this long enough for gpclient program?
+        logger.debug("vpn command launched.")
+        await asyncio.sleep(5) # is this long enough for gpclient program?
         if os.path.exists(self.lockfile): # Should we also analyse the output of route?
             return_code = RETURNCODES.Success
         else:
@@ -113,18 +125,20 @@ class MessageProcessorVPNController(MessageProcessorBase):
         return RETURNCODES.QuitApplication
     
     async def process(self, message: str) -> str:
-        command = self.parse(message)
+        message_dict = deserialise(message)
+        command_code = message_dict["command_code"]
+        command = self.parse(command_code)
         match command:
             case COMMANDS.Status:
-                message = json.dumps(await self.check_status())
+                return_message = await self.check_status()
             case COMMANDS.Open:
-                message = json.dumps(await self.connect_vpn())
+                return_message = await self.connect_vpn(message_dict["logincode"])
             case COMMANDS.Close:
-                message = json.dumps(await self.disconnect_vpn())
+                return_message = await self.disconnect_vpn()
             case COMMANDS.Quit:
-                message = json.dumps(await self.quit_application())
+                return_message = await self.quit_application()
             case _:
                 raise ValueError(f"Unknown command ({command}). Should not occur.")
-        return message
+        return return_message
 
     
