@@ -82,7 +82,6 @@ def test_ipcclient_in_group():
         gids = os.getgroups()
         client.groupname = grp.getgrgid(gids[0]).gr_name
         if uid == 0:
-            print("Nothing to test here.")
             # we are root, nothing to test.
             assert True
         else:
