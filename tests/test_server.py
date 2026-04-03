@@ -53,7 +53,7 @@ def test_reverse_server():
                                                                  delay=1)
                                         )
                              )
-    expected_result = [None, {"return_command": "olleh"}, {"return_command": "OLLEH"}, None]
+    expected_result = [None, {"return_code": "olleh"}, {"return_code": "OLLEH"}, None]
     assert result == expected_result
 
 
@@ -134,4 +134,23 @@ def test_ipcclient_auth():
     assert result[0] == result[2] == None
     assert result[1]["return_code"] == RETURNCODES.Success
 
+
+def test_quit_server():
+    message_processor = MessageProcessorVPNControllerWithTimeout()
+    message_processor.set_timeout(1)
+    server = IPCServer(message_processor=message_processor)
+    server.open()
+    with IPCClientMockUp() as client:
+        result = asyncio.run(test_tasks(server.run(),
+                                        run_awaitable_with_delay(client.send_request(COMMANDS.Quit),
+                                                                 delay=0.5),
+                                        )
+                             )
+    assert result[0] == None # return code of server.run()
+    return_code_dict = result[1]
+    assert "return_code" in return_code_dict
+    assert return_code_dict["return_code"] == RETURNCODES.QuitApplication
+
+
+    
     

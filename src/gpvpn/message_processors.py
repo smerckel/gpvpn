@@ -25,7 +25,7 @@ class MessageProcessorReverse(MessageProcessorBase):
         d = deserialise(json_message)
         command_str = d["command_code"]
         command_str = command_str[::-1]
-        message = json.dumps(dict(return_command=command_str))
+        message = json.dumps(dict(return_code=command_str))
         return message
 
 

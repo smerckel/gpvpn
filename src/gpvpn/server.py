@@ -15,7 +15,7 @@ import zmq.asyncio
 logger = logging.getLogger(__name__)
 
 from .message_processors import MessageProcessorBase
-from .common import GROUPNAME, ERRORCODES, COMMANDS, deserialise
+from .common import GROUPNAME, ERRORCODES, COMMANDS, RETURNCODES, deserialise
 
 class IPCServer:
 
@@ -65,8 +65,19 @@ class IPCServer:
             recvd_message = await self.socket.recv_string()
             logger.info(f"Received request: {recvd_message}")
             return_message = await self.message_processor.process(recvd_message)
+            logger.debug(f"Returned message: {return_message}")
             # Send a reply back to the client
             await self.socket.send_string(return_message)
+            # Check if we got a request to shut down (-> break the loop)
+            return_message_dict = deserialise(return_message)
+            try:
+                quit_application = return_message_dict['return_code'] == RETURNCODES.QuitApplication
+            except KeyError:
+                logger.warning(f"Sending back a return message which is not of type return_code.\n{return_message_dict}.")
+            else:
+                if quit_application:
+                    break
+                
             
     async def run(self) -> None:
         logger.info("Listening for incomming connections...")
