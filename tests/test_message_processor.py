@@ -74,6 +74,16 @@ def message_processor():
         pass
     return mp
 
+@pytest.fixture
+def message_processor20():
+    mp = MessageProcessorVPNControllerWithTimeout(timeout=20)
+    try:
+        os.unlink(mp.lockfile)
+    except FileNotFoundError:
+        pass
+    return mp
+
+
 def test_construct_message_processor(message_processor):
     assert os.path.exists(message_processor.vpn_command[0])
 
@@ -84,7 +94,6 @@ def test_verify_subprocess_is_not_running(message_processor):
     assert result == RETURNCODES.Inactive
 
 def test_start(message_processor, logincode):
-    message_processor.set_timeout(1)
     p = [run_awaitable_with_delay(message_processor.process(encode(COMMANDS.Open, logincode)), delay=0.1),
          run_awaitable_with_delay(message_processor.process(encode(COMMANDS.Status)), delay=0.2),
          run_awaitable_with_delay(message_processor.process(encode(COMMANDS.Status)), delay=1.5),
@@ -95,7 +104,6 @@ def test_start(message_processor, logincode):
 
     
 def test_start_stop_already_disconnected(message_processor, logincode):
-    message_processor.set_timeout(1)
     p = [run_awaitable_with_delay(message_processor.process(encode(COMMANDS.Open, logincode)), delay=0.1),
          run_awaitable_with_delay(message_processor.process(encode(COMMANDS.Status)), delay=0.2),
          run_awaitable_with_delay(message_processor.process(encode(COMMANDS.Close)), delay=2),
@@ -105,22 +113,20 @@ def test_start_stop_already_disconnected(message_processor, logincode):
     assert result == [RETURNCODES.Success, RETURNCODES.Active, RETURNCODES.AlreadyDisconnected]
 
 
-def test_start_stop(message_processor, logincode):
-    message_processor.set_timeout(20)
-    p = [run_awaitable_with_delay(message_processor.process(encode(COMMANDS.Open, logincode)), delay=0.1),
-         run_awaitable_with_delay(message_processor.process(encode(COMMANDS.Status)), delay=0.2),
-         run_awaitable_with_delay(message_processor.process(encode(COMMANDS.Close)), delay=2),
+def test_start_stop(message_processor20, logincode):
+    p = [run_awaitable_with_delay(message_processor20.process(encode(COMMANDS.Open, logincode)), delay=0.1),
+         run_awaitable_with_delay(message_processor20.process(encode(COMMANDS.Status)), delay=0.2),
+         run_awaitable_with_delay(message_processor20.process(encode(COMMANDS.Close)), delay=2),
          ]
     r = asyncio.run(test_tasks(*p))
     result = [decode(i) for i in r if not i is None]
     assert result == [RETURNCODES.Success, RETURNCODES.Active, RETURNCODES.Success]
 
     
-def test_start_start_stop(message_processor, logincode):
-    message_processor.set_timeout(20)
-    p = [run_awaitable_with_delay(message_processor.process(encode(COMMANDS.Open, logincode)), delay=0.1),
-         run_awaitable_with_delay(message_processor.process(encode(COMMANDS.Open, logincode)), delay=0.2),
-         run_awaitable_with_delay(message_processor.process(encode(COMMANDS.Close)), delay=2),
+def test_start_start_stop(message_processor20, logincode):
+    p = [run_awaitable_with_delay(message_processor20.process(encode(COMMANDS.Open, logincode)), delay=0.1),
+         run_awaitable_with_delay(message_processor20.process(encode(COMMANDS.Open, logincode)), delay=0.2),
+         run_awaitable_with_delay(message_processor20.process(encode(COMMANDS.Close)), delay=2),
          ]
     r = asyncio.run(test_tasks(*p))
     result = [decode(i) for i in r if not i is None]

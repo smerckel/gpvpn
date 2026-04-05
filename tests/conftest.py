@@ -5,6 +5,7 @@ from typing import Awaitable
 
 from gpvpn.server import IPCClient
 from gpvpn.message_processors import MessageProcessorVPNController
+from gpvpn.config import GPVpnConfig
 
 @pytest.mark.asyncio # lets pytest know this is a coroutine
 async def test_tasks(*tasks):
@@ -33,19 +34,7 @@ class IPCClientMockUp(IPCClient):
 
 class MessageProcessorVPNControllerWithTimeout(MessageProcessorVPNController):
     def __init__(self, timeout=1):
-        super().__init__()
-        self.set_vpn_command(2)
-        self.lockfile = "/tmp/gpclient.lock"
+        cfg = GPVpnConfig(["tests/mockup.ini"])
+        cfg.vpnclient_options=" ".join([f"--timeout={timeout}", *cfg.vpnclient_options])
+        super().__init__(cfg)
         self.WAIT_FOR_LOCKFILE=0.5
-
-    def set_vpn_command(self, timeout):
-        self.vpn_command = ["gpclientMockUp/gpclientMockUp",
-                            f"--timeout={timeout}", # sets "working time to 1 second" Option not available in real client.
-                            "--fix-openssl",
-                            "connect",
-                            "--cookie-on-stdin",
-                            "--as-gateway",
-                            "gpp.hereon.de"]
-        
-    def set_timeout(self, timeout):
-        self.set_vpn_command(timeout)

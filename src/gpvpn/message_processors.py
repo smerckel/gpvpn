@@ -5,11 +5,13 @@ import json
 import logging
 import typing
 import os
+import pathlib
 
 import zmq
 import zmq.asyncio
 
-from .common import *
+from gpvpn.common import *
+from gpvpn.config import GPVpnConfig
 
 logger = logging.getLogger(__name__)
 
@@ -33,17 +35,18 @@ class MessageProcessorReverse(MessageProcessorBase):
 class MessageProcessorVPNController(MessageProcessorBase):
     WAIT_FOR_LOCKFILE=5 # wait this many seconds after start the gpclient to check for any lockfile.
     
-    def __init__(self) -> None:
-        self.lockfile = "/var/run/gpclient.lock"
-        self.vpn_command = ["/usr/bin/gpclient",
-                            "--fix-openssl",
-                            "connect",
-                            "--browser",
-                            "default",
-                            "vpn.hereon.de"]
-
-        
-        self.logfile = "gpclient.log"
+    def __init__(self, cnf: GPVpnCongfig or None) -> None:
+        if cnf is None:
+            cnf = GPCvpnConfig()
+            cnf.from_files()
+        self.cnf = cnf
+        self.lockfile = str(pathlib.PosixPath(cnf.lock_directory) / cnf.lock_filename)
+        self.logfile = str(pathlib.PosixPath(cnf.log_directory) / cnf.log_filename)
+        self.vpn_command = [cnf.vpnclient_path,
+                            cnf.vpnclient_options,
+                            cnf.vpnclient_command,
+                            cnf.vpnclient_command_options,
+                            cnf.vpnclient_url]
         self.subprocess: asyncio.subprocess.Process | None = None
 
         
@@ -55,6 +58,7 @@ class MessageProcessorVPNController(MessageProcessorBase):
     
     async def run_detached_program(self, command: list[str]) -> asyncio.subprocess.Process:
         # Create the subprocess in a new session
+        command = [i.strip() for i in command] # sanitize any options in case of leading spaces.
         with open(self.logfile, 'w') as fp:
             process = await asyncio.create_subprocess_exec(
                 *command,
@@ -67,6 +71,7 @@ class MessageProcessorVPNController(MessageProcessorBase):
     
     @serialise
     async def check_status(self) -> enum.Enum:
+        logger.debug(f"Checking status: {self.lockfile}: {os.path.exists(self.lockfile)}")
         # check whether lock file exists:
         if os.path.exists(self.lockfile): # Should we also analyse the output of route?
             return_code = RETURNCODES.Active

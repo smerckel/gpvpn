@@ -89,8 +89,7 @@ def test_ipcclient_in_group():
 
 
 def test_ipcclient_run_server():
-    message_processor = MessageProcessorVPNControllerWithTimeout()
-    message_processor.set_timeout(1)
+    message_processor = MessageProcessorVPNControllerWithTimeout(timeout=1)
     server = IPCServer(message_processor=message_processor)
     server.open()
     with IPCClientMockUp() as client:
@@ -102,8 +101,7 @@ def test_ipcclient_run_server():
     assert result == [None, None]
 
 def test_ipcclient_status():
-    message_processor = MessageProcessorVPNControllerWithTimeout()
-    message_processor.set_timeout(1)
+    message_processor = MessageProcessorVPNControllerWithTimeout(timeout=1)
     server = IPCServer(message_processor=message_processor)
     server.open()
     with IPCClientMockUp() as client:
@@ -118,8 +116,7 @@ def test_ipcclient_status():
 
     
 def test_ipcclient_auth():
-    message_processor = MessageProcessorVPNControllerWithTimeout()
-    message_processor.set_timeout(1)
+    message_processor = MessageProcessorVPNControllerWithTimeout(timeout=1)
     server = IPCServer(message_processor=message_processor)
     server.open()
     with IPCClientMockUp() as client:
@@ -135,8 +132,7 @@ def test_ipcclient_auth():
 
 
 def test_quit_server():
-    message_processor = MessageProcessorVPNControllerWithTimeout()
-    message_processor.set_timeout(1)
+    message_processor = MessageProcessorVPNControllerWithTimeout(timeout=1)
     server = IPCServer(message_processor=message_processor)
     server.open()
     with IPCClientMockUp() as client:
