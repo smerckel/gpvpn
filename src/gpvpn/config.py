@@ -23,10 +23,14 @@ class BaseConfig:
         """Instantiate config by reading INI-style key=value files in order."""
         search_paths = list(paths) if paths is not None else self.config_paths
         parser = configparser.ConfigParser()
+        files_read = 0
         # treat file as a simple key=value no-section file by using DEFAULT section
         for p in map(Path, search_paths):
+            logger.debug(f"Trying to read configuration file {str(p)}...")
             if not p.exists():
+                logger.debug(f"Configuration file {str(p)} does not exist.")
                 continue
+            logger.debug(f"Parsing configuration file {str(p)}.")
             # read as a file with a [DEFAULT] wrapper so configparser can parse it
             text = p.read_text(encoding="utf-8")
             if not text.strip().startswith("["):
@@ -41,6 +45,11 @@ class BaseConfig:
                     raw = parser.get("DEFAULT", name)
                     parsed = _coerce_type(raw, f.type, f.default)
                     setattr(self, name, parsed)
+            files_read +=1
+        if not files_read:
+            logger.warning("No configuration file was read. Using default values.")
+            logger.info("Writing example configuration file configuration-example.ini")
+            self.save(path=Path("configuration-example.ini"))
         return self
 
     def save(self, path: Path) -> None:
@@ -107,7 +116,7 @@ class GPVpnConfig(BaseConfig):
     log_filename: str = "gpclient.log"
 
     vpnclient_path: str = "/usr/bin/gpclient"
-    vpnclient_options: str = "--fix_openssl"
+    vpnclient_options: str = "--fix-openssl"
     vpnclient_command: str = "connect"
     vpnclient_command_options: str = "--browser default"
     vpnclient_url: str = "vpn.hereon.de"

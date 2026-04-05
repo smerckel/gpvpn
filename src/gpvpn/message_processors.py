@@ -58,7 +58,12 @@ class MessageProcessorVPNController(MessageProcessorBase):
     
     async def run_detached_program(self, command: list[str]) -> asyncio.subprocess.Process:
         # Create the subprocess in a new session
-        command = [i.strip() for i in command] # sanitize any options in case of leading spaces.
+        _command = list(command)
+        command.clear()
+        for _c in _command:
+            _cs = _c.split()
+            command += _cs
+        logger.debug(f"Executing {" ".join(command)}")
         with open(self.logfile, 'w') as fp:
             process = await asyncio.create_subprocess_exec(
                 *command,
@@ -93,7 +98,7 @@ class MessageProcessorVPNController(MessageProcessorBase):
         self.subprocess.stdin.write(logincode.encode())
         await self.subprocess.stdin.drain()
         self.subprocess.stdin.close() # close stdin, so our program knows there is nothing to be expected.
-        logger.debug("login code submitted. (Should be echoed in log file)")
+        logger.debug(f"Login code submitted. (Should be echoed in log file ({self.logfile}).)")
         await asyncio.sleep(self.WAIT_FOR_LOCKFILE) # is this long enough for gpclient program?
         if os.path.exists(self.lockfile): # Should we also analyse the output of route?
             return_code = RETURNCODES.Success
@@ -128,6 +133,7 @@ class MessageProcessorVPNController(MessageProcessorBase):
             case COMMANDS.Status:
                 return_message = await self.check_status()
             case COMMANDS.Open:
+                logger.debug(f"Going to connect vpn using {message_dict["logincode"]}")
                 return_message = await self.connect_vpn(message_dict["logincode"])
             case COMMANDS.Close:
                 return_message = await self.disconnect_vpn()
