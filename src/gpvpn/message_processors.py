@@ -6,7 +6,7 @@ import logging
 import typing
 import os
 import pathlib
-
+import psutil
 import zmq
 import zmq.asyncio
 
@@ -73,13 +73,34 @@ class MessageProcessorVPNController(MessageProcessorBase):
             )
         return process
 
+    def is_gpclient_running(self, pid: int) -> bool:
+        return psutil.pid_exists(pid) and psutil.Process(pid).is_running()
+
+    def get_pid_from_lockfile(self, lockfile: str) -> int:
+        try:
+            with open(lockfile, 'r') as fp:
+                line = fp.read().strip()
+        except IOError:
+            pid = -1
+        else:
+            try:
+                pid = int(line)
+            except ValueError:
+                pid = -1
+        return pid
     
     @serialise
     async def check_status(self) -> enum.Enum:
         logger.debug(f"Checking status: {self.lockfile}: {os.path.exists(self.lockfile)}")
         # check whether lock file exists:
         if os.path.exists(self.lockfile): # Should we also analyse the output of route?
-            return_code = RETURNCODES.Active
+            pid = self.get_pid_from_lockfile(self.lockfile)
+            if self.is_gpclient_running(pid):
+                return_code = RETURNCODES.Active
+            else:
+                return_code = RETURNCODES.Active
+                logger.info("Removing stale lockfile {self.lockfile}.")
+                os.unlink(self.lockfile)
         else:
             return_code = RETURNCODES.Inactive
         logger.debug(f"Returning {return_code} in check status")

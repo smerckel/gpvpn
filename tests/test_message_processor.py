@@ -4,10 +4,11 @@ import signal
 from typing import Awaitable
 import os
 import json
+import psutil
 
 from gpvpn.message_processors import MessageProcessorVPNController
 from gpvpn.common import *
-
+from gpvpn.config import GPVpnConfig
 
 # import some common functions, classes and fixtures:
 from conftest import *
@@ -136,3 +137,48 @@ def test_quit_server(message_processor):
     r = asyncio.run(message_processor.process(encode(COMMANDS.Quit)))
     result = decode(r)
     assert result == RETURNCODES.QuitApplication
+
+@pytest.fixture
+def cfg_test_lockfile():
+    cfg = GPVpnConfig([])
+    cfg.lockfile="tests/gpclient_test.lock"
+    lockfile = cfg.lockfile
+    with open(cfg.lockfile, 'w') as fp:
+        fp.write("123")
+    yield cfg
+    os.unlink(lockfile)
+    
+def test_detecting_lockfile(cfg_test_lockfile):
+    cfg = cfg_test_lockfile
+    mp = MessageProcessorVPNControllerWithTimeout()
+    pid = mp.get_pid_from_lockfile(cfg.lockfile)
+    assert pid == 123
+
+def test_detecting_non_existing_lockfile(cfg_test_lockfile):
+    mp = MessageProcessorVPNControllerWithTimeout()
+    pid = mp.get_pid_from_lockfile("doesnotexist.lock")
+    assert pid == -1
+
+def test_is_process_running():
+    pid = 1
+    while True:
+        try:
+            psutil.Process(pid).is_running()
+        except psutil.NoSuchProcess:
+            pid+=1
+    mp = MessageProcessorVPNControllerWithTimeout()
+    assert  mp.is_gpclient_running(pid)
+
+
+def test_not_is_process_running():
+    pid = 1
+    while True:
+        try:
+            psutil.Process(pid).is_running()
+            pid += 1
+        except psutil.NoSuchProcess:
+            break
+    mp = MessageProcessorVPNControllerWithTimeout()
+    assert not mp.is_gpclient_running(pid)
+    
+    
