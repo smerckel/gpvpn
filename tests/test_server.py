@@ -9,7 +9,7 @@ from conftest import *
 from gpvpn.server import IPCServer, IPCClient
 from gpvpn.message_processors import MessageProcessorReverse
 from gpvpn.common import *
-
+from gpvpn.config import GPVpnAuthConfig
 
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger("gpvpn.server")
@@ -26,19 +26,19 @@ def test_open_server():
 
 # Mock up class disabling verify_in_group check.
 class IPCClientNoCheck(IPCClient):
+    def __init__(self):
+        cfg = GPVpnAuthConfig()
+        super().__init__(cfg)
+        
     def verify_in_group(self) -> bool:
         return True
 
 class IPCClientMockUp(IPCClient):
     def __init__(self):
-        super().__init__()
-        # Override auth command with a mocked up version
-        self.auth_command = ["gpauthMockup/gpauthMockUp",
-                             "--fix-openssl",
-                             "--default-browser",
-                             "--gateway",
-                             "gpp.hereon.de"]
-
+        cfg = GPVpnAuthConfig()
+        # Override auth command with a mocked up version        
+        cfg.vpnauth_path = "gpauthMockup/gpauthMockUp"
+        super().__init__(cfg)
 
 def test_reverse_server():
     server = IPCServer(message_processor=MessageProcessorReverse())
@@ -56,15 +56,20 @@ def test_reverse_server():
     expected_result = [None, {"return_code": "olleh"}, {"return_code": "OLLEH"}, None]
     assert result == expected_result
 
+@pytest.fixture
+def ipcClient():
+    cfg = GPVpnAuthConfig()
+    client = IPCClient(cfg)
+    return client
 
-def test_ipcclient_non_existing_group():
+def test_ipcclient_non_existing_group(ipcClient):
+    client = ipcClient
     with pytest.raises(SystemExit):
-        client = IPCClient()
         client.groupname = "non-existent"
         client.verify_in_group()
 
-def test_ipcclient_not_in_group():
-        client = IPCClient()
+def test_ipcclient_not_in_group(ipcClient):
+        client = ipcClient
         uid = os.getuid()
         if uid == 0:
             print("Nothing to test here.")
@@ -76,8 +81,8 @@ def test_ipcclient_not_in_group():
         with pytest.raises(SystemExit):
             client.verify_in_group()
 
-def test_ipcclient_in_group():
-        client = IPCClient()
+def test_ipcclient_in_group(ipcClient):
+        client = ipcClient
         uid = os.getuid()
         gids = os.getgroups()
         client.groupname = grp.getgrgid(gids[0]).gr_name
@@ -87,6 +92,14 @@ def test_ipcclient_in_group():
         else:
             assert client.verify_in_group()
 
+def test_default_auth_settings_mockup():
+    with IPCClientMockUp() as client:
+        auth_command = ["gpauthMockup/gpauthMockUp",
+                        "--fix-openssl",
+                        "--default-browser",
+                        "--gateway",
+                        "gpp.hereon.de"]
+        assert client.auth_command == auth_command
 
 def test_ipcclient_run_server():
     message_processor = MessageProcessorVPNControllerWithTimeout(timeout=1)

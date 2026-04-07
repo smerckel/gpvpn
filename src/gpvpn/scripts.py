@@ -39,7 +39,8 @@ def client_app():
             s = COMMANDS.Quit
             
     command = args.command
-    with server.IPCClient() as client:
+    cfg = config.GPVpnAuthConfig()
+    with server.IPCClient(cfg) as client:
         result = asyncio.run(client.send_request(s))
     return_code = result['return_code']
     match return_code:

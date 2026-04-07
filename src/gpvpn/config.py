@@ -120,3 +120,15 @@ class GPVpnConfig(BaseConfig):
     vpnclient_command: str = "connect"
     vpnclient_command_options: str = "--browser default"
     vpnclient_url: str = "vpn.hereon.de"
+
+@dataclass
+class GPVpnAuthConfig(BaseConfig):
+    # locations checked in order; subclasses can override or extend
+    config_paths: list = field(default_factory=lambda: [
+        Path("/usr/local/etc/gpvpn/config_auth.ini"),
+        Path.home() / ".config" / "gpvpn" / "config_auth.ini",
+        Path.cwd() / "config_auth.ini",
+    ])
+    vpnauth_path: str = "/usr/bin/gpauth"
+    vpnauth_options: str = "--fix-openssl --default-browser --gateway"
+    vpnauth_url: str = "gpp.hereon.de"

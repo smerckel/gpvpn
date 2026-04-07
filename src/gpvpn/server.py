@@ -14,8 +14,9 @@ import zmq.asyncio
 
 logger = logging.getLogger(__name__)
 
-from .message_processors import MessageProcessorBase
-from .common import GROUPNAME, ERRORCODES, COMMANDS, RETURNCODES, deserialise
+from gpvpn.config import GPVpnAuthConfig
+from gpvpn.message_processors import MessageProcessorBase
+from gpvpn.common import GROUPNAME, ERRORCODES, COMMANDS, RETURNCODES, deserialise
 
 class IPCServer:
 
@@ -103,6 +104,7 @@ class IPCServer:
 
 class IPCClient:
     def __init__(self,
+                 cfg: GPVpnAuthConfig,
                  socket_path: str = '/tmp',
                  socket_name: str = 'ipcserver') -> None:
         self.socket_path = socket_path
@@ -110,11 +112,13 @@ class IPCClient:
         self.context = zmq.asyncio.Context()
         self.socket = self.context.socket(zmq.REQ)
         self.groupname = GROUPNAME
-        self.auth_command = ["/usr/bin/gpauth",
-                             "--fix-openssl",
-                             "--default-browser",
-                             "--gateway",
-                             "gpp.hereon.de"]
+        self.auth_command = self._construct_auth_command(cfg)
+        
+    def _construct_auth_command(self, cfg: GPVpnAuthConfig) -> [str]:
+        auth_command = [cfg.vpnauth_path]
+        auth_command += [i.strip() for i in cfg.vpnauth_options.split()]
+        auth_command += [cfg.vpnauth_url]
+        return auth_command
         
     def __enter__(self) -> typing.Self:
         self.verify_in_group()

@@ -93,13 +93,13 @@ class MessageProcessorVPNController(MessageProcessorBase):
     async def check_status(self) -> enum.Enum:
         logger.debug(f"Checking status: {self.lockfile}: {os.path.exists(self.lockfile)}")
         # check whether lock file exists:
-        if os.path.exists(self.lockfile): # Should we also analyse the output of route?
+        if os.path.exists(self.lockfile): 
             pid = self.get_pid_from_lockfile(self.lockfile)
             if self.is_gpclient_running(pid):
                 return_code = RETURNCODES.Active
             else:
-                return_code = RETURNCODES.Active
-                logger.info("Removing stale lockfile {self.lockfile}.")
+                return_code = RETURNCODES.Inactive
+                logger.info(f"Removing stale lockfile {self.lockfile}.")
                 os.unlink(self.lockfile)
         else:
             return_code = RETURNCODES.Inactive

@@ -166,6 +166,8 @@ def test_is_process_running():
             psutil.Process(pid).is_running()
         except psutil.NoSuchProcess:
             pid+=1
+        else:
+            break
     mp = MessageProcessorVPNControllerWithTimeout()
     assert  mp.is_gpclient_running(pid)
 
