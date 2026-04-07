@@ -20,14 +20,34 @@ def server_app():
     asyncio.run(s.run())
 
 
-def client_app():    
+def client_app():
+    logging.basicConfig(level=logging.WARNING)
+
     parser = argparse.ArgumentParser(prog='gpvpn',
                                      description='Global Connect VPN contoller',
                                      epilog='')
     parser.add_argument('command',
                         choices=['status', 's', 'connect', 'c', 'disconnect', 'd', 'stop_server'],
                         help='Commands to control the vpn status.')
+    parser.add_argument('-f', '--config_file', help="Reads from this configuration file")
+    parser.add_argument('-v', '--verbose', action='count', default=0,
+                        help='Increase verbosity (use -v, -vv, or -v -v)')
     args = parser.parse_args()
+
+    match args.verbose:
+        case 0:
+            log_level = logging.WARNING
+        case 1:
+            log_level = logging.INFO
+        case 2:
+            log_level = logging.DEBUG
+        case _:
+            log_level = logging.DEBUG
+
+    server.logger.setLevel(log_level)
+    config.logger.setLevel(log_level)
+    message_processors.logger.setLevel(log_level)
+        
     match args.command:
         case "status" | "s":
             s = COMMANDS.Status
@@ -37,9 +57,10 @@ def client_app():
             s = COMMANDS.Close
         case "stop_server":
             s = COMMANDS.Quit
-            
     command = args.command
     cfg = config.GPVpnAuthConfig()
+    if not  args.config_file is None:
+        cfg.from_files([args.config_file])
     with server.IPCClient(cfg) as client:
         result = asyncio.run(client.send_request(s))
     return_code = result['return_code']
