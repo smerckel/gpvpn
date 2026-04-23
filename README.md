@@ -83,4 +83,17 @@ The client takes one of 4 commands:
 
 Furthermore, the client accepts the option -f to specify a configuration file in a non-standard location, and -v for increasing verbosity of the output. The option -vv for even more output.
 
+# Install as systemd service
 
+The gpvpn_server needs to be run as root, and can be started
+automatically as a systemd service. To that end, copy the file
+systemd/gpvpn.service to /etc/systemd/system
+
+```
+  sudo cp gpvpn.service /etc/systemd/system/                                                                                        
+```
+Reload the daemon and enable the service
+```
+  sudo systemctl daemon-reload                                                                                                             
+  sudo systemctl enable --now gpvpn_server
+```
