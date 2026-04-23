@@ -35,9 +35,18 @@ sudo usermod -aG gpvpn <your login name>
 Then logout and login, or reboot for the changes to take effect.
 
 
-## Usage
+## Using configure.sh to configure the server/client
 
-In order to use the gpvpn client, the server must be started as root first.
+Below it is explained how to setup both the server and the client
+manually. You could also use the supplied `configure.sh` script that
+guides you through the setup, suggesting the content of the two
+configuration files. The suggested options may need modification for
+your setup, however.
+
+## The manual setup
+
+In order to use the gpvpn client, the server must be started as root
+first. (Later the server can be configured to be started from systemd.)
 
 To that end, create a configuration file, for example as /usr/local/etc/gpvpn/config.ini and populate the requirements with the options to gpclient as they worked, see example above.
 
@@ -58,7 +67,7 @@ The lock_directory entry is the directory where gpclient creates its lock file.
 Run the server (as root):
 
 ```
-# gpvpn_server
+	gpvpn_server
 ```
 
 Now create a config file for the gpvpn client, for example, $HOME/.config/gpvpn/config_auth.ini
@@ -69,21 +78,27 @@ vpnauth_options = --fix-openssl --default-browser --gateway
 vpnauth_url = gpp.<yourserver>
 ```
 
-and run the client as gpvpn.
+## Usage
+
+Now all is configured and you can run the client as 
+
+```
+	gpvpn
+```
 
 The client takes one of 4 commands:
 
-| Command     | Description                                                         |
-|-------------|---------------------------------------------------------------------|
-| status      | prints status of connection (inactive or active)                    |
-| connect     | connects the vpn. You may have to sign in on a newly opened website |
-| disconnect  | disconnects the vpn.                                                |
-| quit_server | shuts down the server application                                   |
+| Command     | Description                                                                                   |
+|-------------|-----------------------------------------------------------------------------------------------|
+| status      | prints status of connection (inactive or active)                                              |
+| connect     | connects the vpn. You may have to sign in on a newly opened website                           |
+| disconnect  | disconnects the vpn.                                                                          |
+| quit_server | shuts down the server application (if started from systemd, use systemd to restart the server |
 
 
 Furthermore, the client accepts the option -f to specify a configuration file in a non-standard location, and -v for increasing verbosity of the output. The option -vv for even more output.
 
-# Install as systemd service
+## Install as systemd service
 
 The gpvpn_server needs to be run as root, and can be started
 automatically as a systemd service. To that end, copy the file

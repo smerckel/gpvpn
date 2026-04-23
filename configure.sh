@@ -9,6 +9,8 @@ SYSTEMD_SERVICE_NAME=gpvpn.service
 SYSTEMD_SERVICE_FILE_SOURCE_DIR=systemd
 SYSTEMD_SERVICE_DIR=/etc/systemd/system
 
+clear
+
 cat <<EOF
 This script can be used to setup the gpvpn server. It will guide you thourgh the setup of the
 configuration file of the gpvpn_server, as well as the configuration file of the gpvpn client.
@@ -17,6 +19,11 @@ Finally, you will get the option to install the start/stop control as a systemd 
 For some actions, you will need to assume root permission, and you
 will be asked for your credentials accordingly.
 EOF
+
+echo
+echo
+read -p "Hit enter to continue."
+echo
 
 if [ ! -f $GPAUTH ]; then
     echo
@@ -67,9 +74,9 @@ rm tmpfile
 echo
 echo "ℹ️ INFO: I am going to write the gpvpn server config file and may need sudo permsissions."
 echo
-n
 
 read -p "Hit enter to continue."
+echo
 
 cat > tmpfile <<EOF
 [DEFAULT]
@@ -86,7 +93,9 @@ EOF
 
 $EDITOR tmpfile
 
+echo
 read -r -p "Shall I copy your edits to a file config.ini in $CONFIG_DIR? [y/n]" answer
+
 if [[ $answer =~ ^[yY]$ ]]; then
     sudo mkdir -p $CONFIG_AUTH_DIR
     sudo cp tmpfile ${CONFIG_AUTH_DIR}/config_auth.ini
@@ -97,7 +106,9 @@ rm tmpfile
 
 ## Install systemd service
 
+echo
 read -r -p "Shall I install a systemd service to start gpvpn_server automatically? [y/n]" answer
+
 if [[ $answer =~ ^[yY]$ ]]; then
     sudo cp ${SYSTEMD_SERVICE_FILE_SOURCE_DIR}/${SYSTEMD_SERVICE_NAME} ${SYSTEMD_SERVICE_DIR}
     sudo systemctl daemon-reload                                                                                                             
@@ -105,4 +116,5 @@ if [[ $answer =~ ^[yY]$ ]]; then
 else
     echo "⚠️ Skipping systemd installation."
 fi
+echo
 echo "Installation completed."
