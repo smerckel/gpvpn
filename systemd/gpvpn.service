@@ -1,0 +1,13 @@
+[Unit]
+Description=GPVPN Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/rm -f /tmp/ipcserver
+ExecStart=/usr/local/bin/gpvpn_server
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
