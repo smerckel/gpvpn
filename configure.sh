@@ -21,9 +21,12 @@ will be asked for your credentials accordingly.
 EOF
 
 echo
+echo "ℹ️ INFO: I am going to write the gpvpn client config file first."
 echo
 read -p "Hit enter to continue."
 echo
+
+
 
 if [ ! -f $GPAUTH ]; then
     echo
@@ -97,8 +100,8 @@ echo
 read -r -p "Shall I copy your edits to a file config.ini in $CONFIG_DIR? [y/n]" answer
 
 if [[ $answer =~ ^[yY]$ ]]; then
-    sudo mkdir -p $CONFIG_AUTH_DIR
-    sudo cp tmpfile ${CONFIG_AUTH_DIR}/config_auth.ini
+    sudo mkdir -p $CONFIG_DIR
+    sudo cp tmpfile ${CONFIG_DIR}/config.ini
 else
     echo "⚠️ Skipping writing this file"
 fi
